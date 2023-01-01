@@ -199,10 +199,10 @@ int getCoordinate(string input){
     if(isNumber(input)){
         coord = stoi(input);
     }
-    if(coord < 0 || coord>=BoardSize) {
+    if(coord < 1 || coord>BoardSize) {
         coord = -1;
     }
-    return  coord;
+    return  coord-1;
 }
 Command getCommand(){
     string input;
@@ -349,6 +349,17 @@ GameState handleUserCommand(const Command command, vector<vector<char> >& board,
     return InProgress;
 }
 
+GameState checkBoard(const vector<vector<char> >& board, const vector<vector<char> >& ValueBoard){
+    for(int x = 0; x<BoardSize;x++){
+        for(int y = 0; y<BoardSize;y++){
+            if((ValueBoard[x][y]==Mine && board[x][y]!=PossibleMine) || (ValueBoard[x][y]!=Mine && board[x][y]==PossibleMine)){
+                return InProgress;
+            }
+        }
+    }
+    return Win;
+}
+
 void generateBoard(vector<vector<char> >& ValueBoard){
     int minesLeft = MinesCount;
     //TODO: change to c++11 random
@@ -405,16 +416,19 @@ int main(){
     GameState state = InProgress;
 
     while(state==InProgress){
-
         renderBoard(state, MinesCount, board);
         state = handleUserCommand(getCommand(), board, ValueBoard);
+        if(MinesCount==0){
+            state = checkBoard(board, ValueBoard);
+        }
     }
 
-    //TODO: Add win check
 
     //TODO: add final state
 
     //TODO: Made cycle game
+
+    //BUG: errors
 
     return 0;
 }
