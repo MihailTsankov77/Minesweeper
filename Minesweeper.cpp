@@ -18,6 +18,9 @@ struct Command{
 enum Errors{
     InvalidCommand,
     InvalidGameParams,
+    CellAlreadyOpen,
+    CellIsInThisState,
+    CellIsMarked,
     DefaultError,
 };
 
@@ -26,6 +29,14 @@ enum GameState{
     Win,
     Lose
 };
+
+enum CellValue{
+    Empty = ' ',
+    Mine = '*',
+    QuestionMark = '?',
+    PossibleMine = '!'
+};
+
 
 int BoardSize;
 int MinesCount;
@@ -147,6 +158,12 @@ void throwError(Errors err){
         case InvalidGameParams:
             cout<<"Invalid game params. Please input params that satisfy the instructions"<< endl;
             return;
+        case CellAlreadyOpen:
+            cout<<"You can not take actions on a open cell."<<endl;
+            return;
+        case CellIsInThisState:
+            cout<<"Cell is already in this state."<<endl;
+            return;
         default:
             cout<<"Something went wrong!";
     }
@@ -176,7 +193,7 @@ int getCoordinate(string input){
     if(isNumber(input)){
         coord = stoi(input);
     }
-    if(coord < 1 || coord>BoardSize) {
+    if(coord < 0 || coord>=BoardSize) {
         coord = -1;
     }
     return  coord;
@@ -248,17 +265,98 @@ void getGameParams(){
     cin.ignore();
 }
 
+void setCell(char& cell, const CommandModes mode ){
+    if(cell >= '0' && cell <= '9'){
+        throwError(CellAlreadyOpen);
+        return;
+    }
+
+    switch (mode) {
+        case Question:
+            cell = QuestionMark;
+            return;
+        case Unmark:
+            if(cell == Empty){
+                throwError(CellIsInThisState);
+                return;
+            }
+            //Mine count goes up
+            cell = Empty;
+        case Mark:
+            if(cell == Mark){
+                throwError(CellIsInThisState);
+                return;
+            }
+            if(cell == Question){
+                cell = Empty;
+                return;
+            }
+            //Mine count goes down
+            cell = PossibleMine;
+        default:
+            throwError(DefaultError);
+    }
+}
+
+void openCell(char& cell, const char value){
+    if(cell >= '0' && cell <= '9'){
+        throwError(CellAlreadyOpen);
+        return;
+    }
+
+    switch (cell) {
+        case Empty:
+            cell = value;
+            break;
+        case Mark:
+            throwError(CellIsMarked);
+            break;
+        case QuestionMark:
+            cell = Empty;
+            break;
+        default:
+            throwError(DefaultError);
+    }
+}
+
+GameState handleUserCommand(const Command command, vector<vector<char> >& board, const vector<vector<char> > & ValueBord){
+    switch (command.mode) {
+        case Open:
+            if(ValueBord[command.x][command.y]==Mine){
+                return Lose;
+            }
+            openCell(board[command.x][command.y], ValueBord[command.x][command.y]);
+        case Question:
+        case Mark:
+        case Unmark:
+            setCell(board[command.x][command.y], command.mode);
+            break;
+        case Help:
+            showHelp();
+            break;
+        default:
+            throwError(DefaultError);
+            return Lose;
+    }
+
+    return InProgress;
+}
+
+
+
 int main(){
 
     getGameParams();
     int mines = 1;
-    //add char consts * ? ! empty
-    vector<vector<char> > board ( BoardSize , vector<char> (BoardSize, ' '));
-
+    vector<vector<char> > board ( BoardSize , vector<char> (BoardSize, Empty));
+    vector<vector<char> > ValueBoard ( BoardSize , vector<char> (BoardSize, '^'));
+    
     renderBoard(InProgress, mines, board);
 
+    handleUserCommand(getCommand(), board, ValueBoard);
 
-    getCommand();
+
+    renderBoard(InProgress, mines, board);
 
 
     return 0;
