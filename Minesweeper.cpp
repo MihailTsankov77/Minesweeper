@@ -423,8 +423,13 @@ int main(){
         }
     }
 
-
-    //TODO: add final state
+    if(state==Loss){
+        renderBoard(state, MinesCount, ValueBoard);
+        cout<<"Ops you hit a mine. Loser. Try again!"<<endl;
+    }else if(state==Win){
+        renderBoard(state, MinesCount, board);
+        cout<<"You win. Loser. Try again?"<<endl;
+    }
 
     //TODO: Made cycle game
 
