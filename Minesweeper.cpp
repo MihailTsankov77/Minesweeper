@@ -6,8 +6,8 @@
 #include <stdio.h>
 using namespace std;
 
-
-const enum CommandModes {Open, Mark, Unmark, Question, Help, Error};
+//add restart
+enum CommandModes {Open, Mark, Unmark, Question, Help, Error};
 
 struct Command{
     CommandModes mode;
@@ -15,12 +15,20 @@ struct Command{
     int y;
 };
 
-const enum Errors{
-    InvalidCommand = 0,
-    DefaultError = -1,
+enum Errors{
+    InvalidCommand,
+    InvalidGameParams,
+    DefaultError,
 };
 
-int BoardSize = 3;
+enum GameState{
+    InProgress,
+    Win,
+    Lose
+};
+
+int BoardSize;
+int MinesCount;
 
 bool isNumber(const string& s)
 {
@@ -31,11 +39,11 @@ bool isNumber(const string& s)
     return true;
 }
 
-void renderStatsDisplay(int columns, int mines, int state){
+void renderStatsDisplay(int mines, GameState state){
 
     cout<<mines;
-    int spaces = (columns/2)*4 - 1;
-    if(columns%2==0){
+    int spaces = (BoardSize/2)*4 - 1;
+    if(BoardSize%2==0){
         spaces-=2;
     }
     const int start = log10(mines) + 1;
@@ -44,54 +52,54 @@ void renderStatsDisplay(int columns, int mines, int state){
         cout<<" ";
     }
     switch(state){
-        case 0:
+        case InProgress:
             cout<<"(*-*)";
             break;
-        case 1:
+        case Win:
             cout<<"(^-^)";
             break;
-        case 2:
+        case Lose:
             cout<<"(O_o)";
             break;
     }
     cout<<endl<<endl;
 }
 
-void renderRowSeperator(int columns){
-    for(int i=0; i<columns-1; i++){
+void renderRowSeperator(){
+    for(int i=0; i<BoardSize-1; i++){
         cout<<"___|";
     }
     cout<<"___";
     cout<<endl;
 }
 
-void renderLastRowSeperator(int columns){
-    for(int i=0; i<columns-1; i++){
+void renderLastRowSeperator(){
+    for(int i=0; i<BoardSize-1; i++){
         cout<<"   |";
     }
     cout<<endl;
 }
 
 
-void renderRow(int columns, char * rowValues){
+void renderRow(const vector<char> rowValues){
     cout<<" ";
-    for(int i=0; i<columns-1; i++){
+    for(int i=0; i<BoardSize-1; i++){
         cout<<rowValues[i];
         cout<<" | ";
     }
-    cout<<rowValues[columns-1];
+    cout<<rowValues[BoardSize-1];
     cout<<endl;
 }
 
-void renderMinesweeper(int columns, int state, int mines, char * values){
+void renderBoard(const GameState state, const int mines, const vector<vector<char> > board){
 
-    renderStatsDisplay(columns, mines, state);
-    for(int i = 0; i<columns; i++){
-        renderRow(columns, values + i*columns);
-        if(i<columns-1){
-            renderRowSeperator(columns);
+    renderStatsDisplay(mines, state);
+    for(int i = 0; i<BoardSize; i++){
+        renderRow(board[i]);
+        if(i<BoardSize-1){
+            renderRowSeperator();
         }else{
-            renderLastRowSeperator(columns);
+            renderLastRowSeperator();
         }
     }
     cout<<endl;
@@ -136,12 +144,13 @@ void throwError(Errors err){
             cout << "Invalid command. Please try again." << endl;
             cout << "If you need help try typing \"help\"" << endl;
             return;
+        case InvalidGameParams:
+            cout<<"Invalid game params. Please input params that satisfy the instructions"<< endl;
+            return;
         default:
             cout<<"Something went wrong!";
     }
-
-
-   }
+}
 
 CommandModes getMode(string mode){
     if(mode.compare("open") == 0){
@@ -215,14 +224,38 @@ Command getCommand(){
     return command;
 }
 
+void getGameParams(){
+    cout<<"Select board size."<<endl;
+    cout<<"Your options are between 3 and 10"<<endl;
+
+    cin>>BoardSize;
+    if(cin.bad() || BoardSize<3 || BoardSize>10){
+        cin.clear();
+        cin.ignore(); //TODO: fix
+        throwError(InvalidGameParams);
+        return getGameParams();
+    }
+    int maxMines = 3*BoardSize;
+    cout<<"Select mine count."<<endl;
+    cout<<"Your options are between 1 and "<<maxMines<<endl;
+    cin>>MinesCount;
+    if(cin.bad()||MinesCount<1 || MinesCount>maxMines){
+        cin.clear();
+        cin.ignore();
+        throwError(InvalidGameParams);
+        return getGameParams();
+    }
+    cin.ignore();
+}
+
 int main(){
 
-    int state = 0;
+    getGameParams();
     int mines = 1;
     //add char consts * ? ! empty
-    char values [9] = {' ', '?', '*', ' ', '8', ' ', ' ', ' ', '!'};
+    vector<vector<char> > board ( BoardSize , vector<char> (BoardSize, ' '));
 
-    renderMinesweeper(BoardSize, state, mines, values);
+    renderBoard(InProgress, mines, board);
 
 
     getCommand();
