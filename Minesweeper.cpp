@@ -5,8 +5,15 @@
 #include <cmath>
 using namespace std;
 
-//add restart
-enum CommandModes {Open, Mark, Unmark, Question, Help, Error};
+//TODO: add restart
+enum CommandModes {
+    Open,
+    Mark,
+    Unmark,
+    Question,
+    Help,
+    Error
+};
 
 struct Command{
     CommandModes mode;
@@ -26,7 +33,7 @@ enum Errors{
 enum GameState{
     InProgress,
     Win,
-    Lose
+    Loss
 };
 
 enum CellValue{
@@ -68,7 +75,7 @@ void renderStatsDisplay(int mines, GameState state){
         case Win:
             cout<<"(^-^)";
             break;
-        case Lose:
+        case Loss:
             cout<<"(O_o)";
             break;
     }
@@ -279,8 +286,8 @@ void setCell(char& cell, const CommandModes mode ){
                 throwError(CellIsInThisState);
                 return;
             }
-            //Mine count goes up
             cell = Empty;
+            MinesCount++;
         case Mark:
             if(cell == Mark){
                 throwError(CellIsInThisState);
@@ -290,8 +297,8 @@ void setCell(char& cell, const CommandModes mode ){
                 cell = Empty;
                 return;
             }
-            //Mine count goes down
             cell = PossibleMine;
+            MinesCount--;
         default:
             throwError(DefaultError);
     }
@@ -323,7 +330,7 @@ GameState handleUserCommand(const Command command, vector<vector<char> >& board,
     switch (command.mode) {
         case Open:
             if(ValueBord[command.x][command.y]==Mine){
-                return Lose;
+                return Loss;
             }
             openCell(board[command.x][command.y], ValueBord[command.x][command.y]);
         case Question:
@@ -336,7 +343,7 @@ GameState handleUserCommand(const Command command, vector<vector<char> >& board,
             break;
         default:
             throwError(DefaultError);
-            return Lose;
+            return Loss;
     }
 
     return InProgress;
@@ -387,22 +394,27 @@ void generateBoard(vector<vector<char> >& ValueBoard){
     }
 }
 
+
+
 int main(){
     getGameParams();
-    int mines = 1;
     vector<vector<char> > board ( BoardSize , vector<char> (BoardSize, Empty));
     vector<vector<char> > ValueBoard ( BoardSize , vector<char> (BoardSize, '0'));
 
-
     generateBoard(ValueBoard);
+    GameState state = InProgress;
 
-    renderBoard(InProgress, mines, board);
+    while(state==InProgress){
 
-    handleUserCommand(getCommand(), board, ValueBoard);
+        renderBoard(state, MinesCount, board);
+        state = handleUserCommand(getCommand(), board, ValueBoard);
+    }
 
+    //TODO: Add win check
 
-    renderBoard(InProgress, mines, board);
+    //TODO: add final state
 
+    //TODO: Made cycle game
 
     return 0;
 }
