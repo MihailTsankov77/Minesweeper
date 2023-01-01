@@ -1,9 +1,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
+#include <ctime>
 #include <cmath>
-#include <stdio.h>
 using namespace std;
 
 //add restart
@@ -299,6 +298,7 @@ void setCell(char& cell, const CommandModes mode ){
 }
 
 void openCell(char& cell, const char value){
+    //TODO: when open 0 open neighbor cells
     if(cell >= '0' && cell <= '9'){
         throwError(CellAlreadyOpen);
         return;
@@ -342,15 +342,60 @@ GameState handleUserCommand(const Command command, vector<vector<char> >& board,
     return InProgress;
 }
 
-
+void generateBoard(vector<vector<char> >& ValueBoard){
+    int minesLeft = MinesCount;
+    //TODO: change to c++11 random
+    srand(time(nullptr));
+    while( minesLeft!=0){
+        int x = rand()%BoardSize-1;
+        int y = rand()%BoardSize-1;
+        if(x<0 || x>=BoardSize || y<0 || y>=BoardSize || ValueBoard[x][y]==Mine){
+            continue;
+        }
+        ValueBoard[x][y]= Mine;
+        //Horizontal and Vertical
+        if(x-1>=0 && ValueBoard[x-1][y]!=Mine){
+            ValueBoard[x-1][y] += 1;
+        }
+        if(x+1<BoardSize && ValueBoard[x+1][y]!=Mine){
+            ValueBoard[x+1][y] += 1;
+        }
+        if(y-1>=0 && ValueBoard[x][y-1]!=Mine){
+            ValueBoard[x][y-1] += 1;
+        }
+        if(y+1<BoardSize && ValueBoard[x][y+1]!=Mine){
+            ValueBoard[x][y+1] += 1;
+        }
+        //Diagonals
+        if(x-1>=0){
+            if(y-1>=0 && ValueBoard[x-1][y-1]!=Mine){
+                ValueBoard[x-1][y-1] += 1;
+            }
+            if(y+1<BoardSize && ValueBoard[x-1][y+1]!=Mine){
+                ValueBoard[x-1][y+1] += 1;
+            }
+        }
+        if(x+1<BoardSize){
+            if(y-1>=0 && ValueBoard[x+1][y-1]!=Mine){
+                ValueBoard[x+1][y-1] += 1;
+            }
+            if(y+1<BoardSize && ValueBoard[x+1][y+1]!=Mine){
+                ValueBoard[x+1][y+1] += 1;
+            }
+        }
+        minesLeft--;
+    }
+}
 
 int main(){
-
     getGameParams();
     int mines = 1;
     vector<vector<char> > board ( BoardSize , vector<char> (BoardSize, Empty));
-    vector<vector<char> > ValueBoard ( BoardSize , vector<char> (BoardSize, '^'));
-    
+    vector<vector<char> > ValueBoard ( BoardSize , vector<char> (BoardSize, '0'));
+
+
+    generateBoard(ValueBoard);
+
     renderBoard(InProgress, mines, board);
 
     handleUserCommand(getCommand(), board, ValueBoard);
