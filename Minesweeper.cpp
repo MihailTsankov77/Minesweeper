@@ -58,13 +58,14 @@ bool isNumber(const string& s)
 
 void renderStatsDisplay(int mines, GameState state){
 
-    cout<<mines;
+
     int spaces = (BoardSize/2)*4 - 1;
     if(BoardSize%2==0){
         spaces-=2;
     }
-    const int start = log10(mines) + 1;
+    const int start = log10(mines==0? 1: mines) + 1;
 
+    cout<<mines;
     for(int i=start; i<spaces; i++){
         cout<<" ";
     }
@@ -304,22 +305,43 @@ void setCell(char& cell, const CommandModes mode ){
     }
 }
 
-void openCell(char& cell, const char value){
-    //TODO: when open 0 open neighbor cells
-    if(cell >= '0' && cell <= '9'){
-        throwError(CellAlreadyOpen);
+void openCell(const int x, const int y, vector<vector<char> >& board, const vector<vector<char> > & ValueBord, const bool showErrors = true){
+    if(x<0 || x>=BoardSize || y<0 || y>=BoardSize){
+        if(showErrors){
+            throwError(DefaultError);
+        }
         return;
     }
 
-    switch (cell) {
+    char *cell = &board[x][y];
+    const char value = ValueBord[x][y];
+    if(*cell >= '0' && *cell <= '9'){
+        if(showErrors) {
+            throwError(CellAlreadyOpen);
+        }
+        return;
+    }
+
+    switch (*cell) {
         case Empty:
-            cell = value;
+            *cell = value;
+            if(value=='0'){
+                cout<<"BOOm";
+                openCell(x-1, y, board, ValueBord, false);
+                openCell(x-1, y-1, board, ValueBord, false);
+                openCell(x-1, y+1, board, ValueBord, false);
+                openCell(x+1, y, board, ValueBord, false);
+                openCell(x+1, y-1, board, ValueBord, false);
+                openCell(x+1, y+1, board, ValueBord, false);
+                openCell(x, y+1, board, ValueBord, false);
+                openCell(x, y-1, board, ValueBord, false);
+            }
             break;
         case Mark:
             throwError(CellIsMarked);
             break;
         case QuestionMark:
-            cell = Empty;
+            *cell = Empty;
             break;
         default:
             throwError(DefaultError);
@@ -332,7 +354,7 @@ GameState handleUserCommand(const Command command, vector<vector<char> >& board,
             if(ValueBord[command.x][command.y]==Mine){
                 return Loss;
             }
-            openCell(board[command.x][command.y], ValueBord[command.x][command.y]);
+            openCell(command.x, command.y ,board, ValueBord);
         case Question:
         case Mark:
         case Unmark:
@@ -349,7 +371,7 @@ GameState handleUserCommand(const Command command, vector<vector<char> >& board,
     return InProgress;
 }
 
-GameState checkBoard(const vector<vector<char> >& board, const vector<vector<char> >& ValueBoard){
+GameState checkBoardState(const vector<vector<char> >& board, const vector<vector<char> >& ValueBoard){
     for(int x = 0; x<BoardSize;x++){
         for(int y = 0; y<BoardSize;y++){
             if((ValueBoard[x][y]==Mine && board[x][y]!=PossibleMine) || (ValueBoard[x][y]!=Mine && board[x][y]==PossibleMine)){
@@ -419,7 +441,7 @@ int main(){
         renderBoard(state, MinesCount, board);
         state = handleUserCommand(getCommand(), board, ValueBoard);
         if(MinesCount==0){
-            state = checkBoard(board, ValueBoard);
+            state = checkBoardState(board, ValueBoard);
         }
     }
 
