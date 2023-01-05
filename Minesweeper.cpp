@@ -444,9 +444,7 @@ void generateBoard(vector<vector<char> >& ValueBoard){
     }
 }
 
-
-
-int main(){
+void initGame(){
     getGameParams();
     vector<vector<char> > board ( BoardSize , vector<char> (BoardSize, Empty));
     vector<vector<char> > ValueBoard ( BoardSize , vector<char> (BoardSize, '0'));
@@ -469,8 +467,27 @@ int main(){
         renderBoard(state, MinesCount, board);
         cout<<"You win. Loser. Try again?"<<endl;
     }
+}
 
-    //TODO: Made cycle game
+bool continueGame(){
+    cout<<"Y/N"<<endl;
+    string answer;
+    cin>>answer;
+    if(answer.compare("Y") == 0 || answer.compare("y") == 0){
+        return true;
+    }
+    if(answer.compare("N") == 0 || answer.compare("n") == 0){
+        return false;
+    }
+    throwError(InvalidCommand);
+    return continueGame();
+}
 
+int main(){
+    do{
+        initGame();
+    }while(continueGame());
+    
+    cout<<"Nice knowing you!";
     return 0;
 }
