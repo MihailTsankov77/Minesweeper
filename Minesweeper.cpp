@@ -123,7 +123,7 @@ void renderBoard(const GameState state, const int mines, const vector<vector<cha
     cout<<endl;
 }
 
-
+//TODO: see what does this do
 vector<string> split (string s, string delimiter) {
     size_t pos_start = 0, pos_end, delim_len = delimiter.length();
     string token;
@@ -172,7 +172,7 @@ void throwError(Errors err){
             cout<<"Cell is already in this state."<<endl;
             return;
         default:
-            cout<<"Something went wrong!";
+            cout<<"Something went wrong!"<<endl;;
     }
 }
 
@@ -240,8 +240,7 @@ Command getCommand(){
             throwError(InvalidCommand);
             return getCommand();
     }
-
-    if(command.mode!=Help && (command.x == -1 || command.y == -1)) {
+    if(command.mode!=Help && (command.x <0 || command.y < 0)) {
         throwError(InvalidCommand);
         return getCommand();
     }
@@ -251,23 +250,37 @@ Command getCommand(){
 void getGameParams(){
     cout<<"Select board size."<<endl;
     cout<<"Your options are between 3 and 10"<<endl;
-
-    cin>>BoardSize;
-    if(cin.bad() || BoardSize<3 || BoardSize>10){
-        cin.clear();
-        cin.ignore(); //TODO: fix
-        throwError(InvalidGameParams);
-        return getGameParams();
+    string boardSizeInput;
+    cin>>boardSizeInput;
+    if(!isNumber(boardSizeInput) ){
+    throwError(InvalidGameParams);
+    return getGameParams();
+}else{
+        const int boardSizeBuffer = stoi(boardSizeInput);
+        if(boardSizeBuffer<3 || boardSizeBuffer>10) {
+            throwError(InvalidGameParams);
+            return getGameParams();
+        }
+        BoardSize = boardSizeBuffer;
     }
-    int maxMines = 3*BoardSize;
+
+
+    const int maxMines = 3*BoardSize;
     cout<<"Select mine count."<<endl;
     cout<<"Your options are between 1 and "<<maxMines<<endl;
-    cin>>MinesCount;
-    if(cin.bad()||MinesCount<1 || MinesCount>maxMines){
-        cin.clear();
-        cin.ignore();
+    string minesInput;
+    cin>>minesInput;
+
+    if(!isNumber(minesInput) ){
         throwError(InvalidGameParams);
         return getGameParams();
+    }else{
+        const int minesBuffer = stoi(minesInput);
+        if(minesBuffer<1 || minesBuffer>maxMines) {
+            throwError(InvalidGameParams);
+            return getGameParams();
+        }
+        MinesCount = minesBuffer;
     }
     cin.ignore();
 }
@@ -288,7 +301,10 @@ void setCell(char& cell, const CommandModes mode ){
                 return;
             }
             cell = Empty;
-            MinesCount++;
+            if(cell == Mark){
+                MinesCount++;
+            }
+            return;
         case Mark:
             if(cell == Mark){
                 throwError(CellIsInThisState);
@@ -300,6 +316,7 @@ void setCell(char& cell, const CommandModes mode ){
             }
             cell = PossibleMine;
             MinesCount--;
+            return;
         default:
             throwError(DefaultError);
     }
@@ -326,7 +343,6 @@ void openCell(const int x, const int y, vector<vector<char> >& board, const vect
         case Empty:
             *cell = value;
             if(value=='0'){
-                cout<<"BOOm";
                 openCell(x-1, y, board, ValueBord, false);
                 openCell(x-1, y-1, board, ValueBord, false);
                 openCell(x-1, y+1, board, ValueBord, false);
@@ -355,6 +371,7 @@ GameState handleUserCommand(const Command command, vector<vector<char> >& board,
                 return Loss;
             }
             openCell(command.x, command.y ,board, ValueBord);
+            break;
         case Question:
         case Mark:
         case Unmark:
@@ -454,8 +471,6 @@ int main(){
     }
 
     //TODO: Made cycle game
-
-    //BUG: errors
 
     return 0;
 }
