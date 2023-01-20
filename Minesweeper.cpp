@@ -1,12 +1,9 @@
 #include <iostream>
-#include <string>
-#include <vector>
 #include <ctime>
 #include <cmath>
 
 using namespace std;
 
-//TODO: add restart
 enum CommandModes {
     Open,
     Mark,
@@ -20,6 +17,11 @@ struct Command {
     CommandModes mode;
     int x;
     int y;
+};
+
+struct GameParams {
+    int boardSize;
+    int minesCount;
 };
 
 enum Errors {
@@ -44,69 +46,135 @@ enum CellValue {
     PossibleMine = '!'
 };
 
+char* generateArray (const int size, const char defaultValue){
+    char *arr = new char[size];
+    for (int j = 0; j < size; ++j) {
+        arr[j] = defaultValue;
+    }
 
-int BoardSize;
-int MinesCount;
+    return arr;
+}
 
-bool isNumber(const string &s) {
-    for (char const &ch: s) {
-        if (isdigit(ch) == 0)
+char** generate2DArray (const int size, const char defaultValue){
+    char **arr = new char* [size];
+    for (int i = 0; i <size; ++i) {
+        arr[i] = generateArray(size, defaultValue);
+    }
+    return arr;
+}
+
+void delete2DArray(char **arr, int size){
+    for (int i = 0; i < size; ++i) {
+        delete [] arr[i];
+    }
+    delete []arr;
+}
+
+bool isNumber(const char* arr, int size) {
+    if(arr[0]=='0' && arr[1]!='\0'){
+        return false;
+    }
+    for (int i = 0; arr[i]!='\0' && i<size; i++) {
+        if (arr[i]<'0' || arr[i]>'9'){
             return false;
+        }
     }
     return true;
 }
 
-//TODO: see what does this do
-vector<string> split(string s, string delimiter) {
-    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
-    string token;
-    vector<string> res;
-
-    while ((pos_end = s.find(delimiter, pos_start)) != string::npos) {
-        token = s.substr(pos_start, pos_end - pos_start);
-        pos_start = pos_end + delim_len;
-        res.push_back(token);
+char * resizeArr(char* arr, const int size){
+    char* newArr = new char[size*2];
+    for (int i = 0; i < size; ++i) {
+        newArr[i] = arr[i];
     }
-
-    res.push_back(s.substr(pos_start));
-    return res;
+    delete [] arr;
+    return newArr;
 }
 
+int split(const char* s, int size, const char delimiter, char** const arr) {
 
-CommandModes getMode(string mode) {
-    if (mode.compare("open") == 0) {
+    int arrSize = 5;
+    int inArr = 0;
+    int subStringsTrack = 0;
 
+    arr[subStringsTrack] = new char[5];
+
+    for (int i = 0; s[i]!='\0' && i < size; ++i) {
+        if(s[i]!=delimiter){
+            if(inArr>=arrSize){
+                arr [subStringsTrack] =resizeArr(arr[subStringsTrack], arrSize);
+                arrSize*=2;
+            }
+            arr[subStringsTrack][inArr] = s[i];
+            inArr++;
+        }else{
+            if(subStringsTrack<3) {
+                subStringsTrack++;
+                arr[subStringsTrack] = new char[5];
+                inArr = 0;
+                arrSize = 5;
+            }
+        }
+    }
+
+    for (int i = subStringsTrack+1; i < 4; ++i) {
+        arr[i] = new char[5];
+    }
+
+    return subStringsTrack +1;
+}
+
+bool compareCharArr(const char * arr1, const char * arr2){
+    for (int i = 0; arr1[i]!='\0' || arr2[i]!='\0'; ++i) {
+        if(arr1[i]!=arr2[i]){
+            return false;
+        }
+    }
+    return true;
+}
+
+CommandModes getMode(const char * mode) {
+    if (compareCharArr(mode, "open")) {
         return Open;
     }
-    if (mode.compare("mark") == 0) {
+    if (compareCharArr(mode, "mark")) {
         return Mark;
     }
-    if (mode.compare("unmark") == 0) {
+    if (compareCharArr(mode, "unmark")) {
         return Unmark;
     }
-    if (mode.compare("question") == 0) {
+    if (compareCharArr(mode, "question")) {
         return Question;
     }
-    if (mode.compare("help") == 0) {
+    if (compareCharArr(mode, "help")) {
         return Help;
     }
     return Error;
 }
 
-int getCoordinate(string input) {
-    int coord = -1;
-    if (isNumber(input)) {
-        coord = stoi(input);
+int convertCharToInt(const char * arr){
+    int num = 0;
+    for(int i=0; arr[i]!='\0';i++){
+        num *=10;
+        num += (arr[i]-'0');
     }
-    if (coord < 1 || coord > BoardSize) {
+    return num;
+}
+
+int getCoordinate(const char* input, const int boardSize) {
+    int coord = -1;
+    if (isNumber(input, 3)) {
+        coord = convertCharToInt(input);
+    }
+    if (coord < 1 || coord > boardSize) {
         coord = -1;
     }
     return coord - 1;
 }
 
-GameState checkBoardState(const vector<vector<char> > &board, const vector<vector<char> > &ValueBoard) {
-    for (int x = 0; x < BoardSize; x++) {
-        for (int y = 0; y < BoardSize; y++) {
+GameState checkBoardState( char** const board,  char** const ValueBoard, const int boardSize) {
+    for (int x = 0; x < boardSize; x++) {
+        for (int y = 0; y < boardSize; y++) {
             if ((ValueBoard[x][y] == Mine && board[x][y] != PossibleMine) ||
                 (ValueBoard[x][y] != Mine && board[x][y] == PossibleMine)) {
                 return InProgress;
@@ -116,14 +184,13 @@ GameState checkBoardState(const vector<vector<char> > &board, const vector<vecto
     return Win;
 }
 
-void generateBoard(vector<vector<char> > &ValueBoard) {
-    int minesLeft = MinesCount;
-    //TODO: change to c++11 random
+void generateBoard(char** ValueBoard, const int boardSize, const int minesCount) {
+    int minesLeft = minesCount;
     srand(time(nullptr));
     while (minesLeft != 0) {
-        int x = rand() % BoardSize - 1;
-        int y = rand() % BoardSize - 1;
-        if (x < 0 || x >= BoardSize || y < 0 || y >= BoardSize || ValueBoard[x][y] == Mine) {
+        int x = rand() % boardSize - 1;
+        int y = rand() % boardSize - 1;
+        if (x < 0 || x >= boardSize || y < 0 || y >= boardSize || ValueBoard[x][y] == Mine) {
             continue;
         }
         ValueBoard[x][y] = Mine;
@@ -131,13 +198,13 @@ void generateBoard(vector<vector<char> > &ValueBoard) {
         if (x - 1 >= 0 && ValueBoard[x - 1][y] != Mine) {
             ValueBoard[x - 1][y] += 1;
         }
-        if (x + 1 < BoardSize && ValueBoard[x + 1][y] != Mine) {
+        if (x + 1 < boardSize && ValueBoard[x + 1][y] != Mine) {
             ValueBoard[x + 1][y] += 1;
         }
         if (y - 1 >= 0 && ValueBoard[x][y - 1] != Mine) {
             ValueBoard[x][y - 1] += 1;
         }
-        if (y + 1 < BoardSize && ValueBoard[x][y + 1] != Mine) {
+        if (y + 1 < boardSize && ValueBoard[x][y + 1] != Mine) {
             ValueBoard[x][y + 1] += 1;
         }
         //Diagonals
@@ -145,15 +212,15 @@ void generateBoard(vector<vector<char> > &ValueBoard) {
             if (y - 1 >= 0 && ValueBoard[x - 1][y - 1] != Mine) {
                 ValueBoard[x - 1][y - 1] += 1;
             }
-            if (y + 1 < BoardSize && ValueBoard[x - 1][y + 1] != Mine) {
+            if (y + 1 < boardSize && ValueBoard[x - 1][y + 1] != Mine) {
                 ValueBoard[x - 1][y + 1] += 1;
             }
         }
-        if (x + 1 < BoardSize) {
+        if (x + 1 < boardSize) {
             if (y - 1 >= 0 && ValueBoard[x + 1][y - 1] != Mine) {
                 ValueBoard[x + 1][y - 1] += 1;
             }
-            if (y + 1 < BoardSize && ValueBoard[x + 1][y + 1] != Mine) {
+            if (y + 1 < boardSize && ValueBoard[x + 1][y + 1] != Mine) {
                 ValueBoard[x + 1][y + 1] += 1;
             }
         }
@@ -161,11 +228,10 @@ void generateBoard(vector<vector<char> > &ValueBoard) {
     }
 }
 
-void renderStatsDisplay(int mines, GameState state) {
+void renderStatsDisplay(int mines, GameState state, const int boardSize) {
 
-
-    int spaces = (BoardSize / 2) * 4 - 1;
-    if (BoardSize % 2 == 0) {
+    int spaces = (boardSize / 2) * 4 - 1;
+    if (boardSize % 2 == 0) {
         spaces -= 2;
     }
     const int start = log10(mines == 0 ? 1 : mines) + 1;
@@ -188,46 +254,45 @@ void renderStatsDisplay(int mines, GameState state) {
     cout << endl << endl;
 }
 
-void renderRowSeperator() {
-    for (int i = 0; i < BoardSize - 1; i++) {
+void renderRowSeperator(const int boardSize) {
+    for (int i = 0; i < boardSize - 1; i++) {
         cout << "___|";
     }
     cout << "___";
     cout << endl;
 }
 
-void renderLastRowSeperator() {
-    for (int i = 0; i < BoardSize - 1; i++) {
+void renderLastRowSeperator(const int boardSize) {
+    for (int i = 0; i < boardSize - 1; i++) {
         cout << "   |";
     }
     cout << endl;
 }
 
 
-void renderRow(const vector<char> rowValues) {
+void renderRow(const char* rowValues, const int boardSize) {
     cout << " ";
-    for (int i = 0; i < BoardSize - 1; i++) {
+    for (int i = 0; i < boardSize - 1; i++) {
         cout << rowValues[i];
         cout << " | ";
     }
-    cout << rowValues[BoardSize - 1];
+    cout << rowValues[boardSize - 1];
     cout << endl;
 }
 
-void renderBoard(const GameState state, const int mines, const vector<vector<char> > board) {
+void renderBoard(const GameState state, const int mines, char** const board, const int boardSize) {
 
-    renderStatsDisplay(mines, state);
-    for (int i = 0; i < BoardSize; i++) {
-        renderRow(board[i]);
-        if (i < BoardSize - 1) {
-            renderRowSeperator();
+    renderStatsDisplay(mines, state, boardSize);
+    for (int i = 0; i < boardSize; i++) {
+        renderRow(board[i], boardSize);
+        if (i < boardSize - 1) {
+            renderRowSeperator(boardSize);
         } else {
-            renderLastRowSeperator();
+            renderLastRowSeperator(boardSize);
         }
     }
     cout << endl;
 }
-
 
 void throwError(Errors err) {
     switch (err) {
@@ -243,6 +308,9 @@ void throwError(Errors err) {
             return;
         case CellIsInThisState:
             cout << "Cell is already in this state." << endl;
+            return;
+        case CellIsMarked:
+            cout << "Cell is already marked if you want to take actions, first unmark it." << endl;
             return;
         default:
             cout << "Something went wrong!" << endl;;
@@ -263,31 +331,31 @@ bool continueGame() {
     return continueGame();
 }
 
-void getGameParams() {
+GameParams getGameParams() {
     cout << "Select board size." << endl;
     cout << "Your options are between 3 and 10" << endl;
-    string boardSizeInput;
+    char boardSizeInput[5];
     cin >> boardSizeInput;
-    if (!isNumber(boardSizeInput)) {
+    int boardSize = -1;
+    if (!isNumber(boardSizeInput, 5)) {
         throwError(InvalidGameParams);
         return getGameParams();
     } else {
-        const int boardSizeBuffer = stoi(boardSizeInput);
+        const int boardSizeBuffer = convertCharToInt(boardSizeInput);
         if (boardSizeBuffer < 3 || boardSizeBuffer > 10) {
             throwError(InvalidGameParams);
             return getGameParams();
         }
-        BoardSize = boardSizeBuffer;
+        boardSize = boardSizeBuffer;
     }
 
-
-    const int maxMines = 3 * BoardSize;
+    const int maxMines = 3 * boardSize;
     cout << "Select mine count." << endl;
     cout << "Your options are between 1 and " << maxMines << endl;
-    string minesInput;
+    char minesInput[4];
     cin >> minesInput;
-
-    if (!isNumber(minesInput)) {
+    int minesCount = -1;
+    if (!isNumber(minesInput, 4)) {
         throwError(InvalidGameParams);
         return getGameParams();
     } else {
@@ -296,12 +364,16 @@ void getGameParams() {
             throwError(InvalidGameParams);
             return getGameParams();
         }
-        MinesCount = minesBuffer;
+        minesCount = minesBuffer;
     }
     cin.ignore();
+    return {
+        boardSize: boardSize,
+        minesCount: minesCount,
+    };
 }
 
-void setCell(char &cell, const CommandModes mode) {
+void setCell(char &cell, const CommandModes mode, int* minesCount) {
     if (cell >= '0' && cell <= '9') {
         throwError(CellAlreadyOpen);
         return;
@@ -316,31 +388,30 @@ void setCell(char &cell, const CommandModes mode) {
                 throwError(CellIsInThisState);
                 return;
             }
-            cell = Empty;
-            if (cell == Mark) {
-                MinesCount++;
+            if (cell == PossibleMine) {
+                *minesCount += 1;
             }
+            cell = Empty;
             return;
         case Mark:
-            if (cell == Mark) {
+            if (cell == PossibleMine) {
                 throwError(CellIsInThisState);
                 return;
             }
-            if (cell == Question) {
+            if (cell == QuestionMark) {
                 cell = Empty;
                 return;
             }
             cell = PossibleMine;
-            MinesCount--;
+            *minesCount -= 1;
             return;
         default:
             throwError(DefaultError);
     }
 }
 
-void openCell(const int x, const int y, vector<vector<char> > &board, const vector<vector<char> > &ValueBord,
-              const bool showErrors = true) {
-    if (x < 0 || x >= BoardSize || y < 0 || y >= BoardSize) {
+void openCell(const int x, const int y, char** board,  char**const ValueBord, const int boardSize, const bool showErrors = true) {
+    if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
         if (showErrors) {
             throwError(DefaultError);
         }
@@ -355,23 +426,24 @@ void openCell(const int x, const int y, vector<vector<char> > &board, const vect
         }
         return;
     }
-
     switch (*cell) {
         case Empty:
             *cell = value;
             if (value == '0') {
-                openCell(x - 1, y, board, ValueBord, false);
-                openCell(x - 1, y - 1, board, ValueBord, false);
-                openCell(x - 1, y + 1, board, ValueBord, false);
-                openCell(x + 1, y, board, ValueBord, false);
-                openCell(x + 1, y - 1, board, ValueBord, false);
-                openCell(x + 1, y + 1, board, ValueBord, false);
-                openCell(x, y + 1, board, ValueBord, false);
-                openCell(x, y - 1, board, ValueBord, false);
+                openCell(x - 1, y, board, ValueBord, boardSize, false);
+                openCell(x - 1, y - 1, board, ValueBord, boardSize, false);
+                openCell(x - 1, y + 1, board, ValueBord, boardSize, false);
+                openCell(x + 1, y, board, ValueBord, boardSize, false);
+                openCell(x + 1, y - 1, board, ValueBord, boardSize, false);
+                openCell(x + 1, y + 1, board, ValueBord, boardSize, false);
+                openCell(x, y + 1, board, ValueBord, boardSize, false);
+                openCell(x, y - 1, board, ValueBord, boardSize, false);
             }
             break;
-        case Mark:
-            throwError(CellIsMarked);
+        case PossibleMine:
+            if(showErrors){
+                throwError(CellIsMarked);
+            }
             break;
         case QuestionMark:
             *cell = Empty;
@@ -393,17 +465,18 @@ void showHelp() {
          << "(to use other command on this field you need to do it two times)" << endl;
     cout << "help - shows you this help menu" << endl;
     cout << "Press any key and enter to continue" << endl;
-    string buffer;
-    getline(cin, buffer);
+    char buffer[2];
+
+    cin.getline(buffer, 2);
 }
 
-Command getCommand() {
-    string input;
+Command getCommand(const int boardSize) {
     cout << "> ";
-    getline(cin, input);
+    char input [20];
+    cin.getline(input, 20);
 
-    vector<string> commands = split(input, " ");
-
+    char** commands = new char*[4];
+    int commandArrSize = split(input, 20, ' ', commands);
     Command command;
 
     command.mode = getMode(commands[0]);
@@ -412,46 +485,51 @@ Command getCommand() {
         case Mark:
         case Unmark:
         case Question:
-            if (commands.size() != 3) {
+            if (commandArrSize != 3) {
                 throwError(InvalidCommand);
-                return getCommand();
+                delete2DArray(commands, 4);
+                return getCommand(boardSize);
             }
-            command.x = getCoordinate(commands[1]);
-            command.y = getCoordinate(commands[2]);
+            command.x = getCoordinate(commands[1], boardSize);
+            command.y = getCoordinate(commands[2], boardSize);
             break;
 
         case Help:
-            if (commands.size() != 1) {
+            if (commandArrSize != 1) {
                 throwError(InvalidCommand);
-                return getCommand();
+                delete2DArray(commands, 4);
+                return getCommand(boardSize);
             }
             command.x = -1;
             command.y = -1;
             break;
         default:
             throwError(InvalidCommand);
-            return getCommand();
+            delete2DArray(commands, 4);
+            return getCommand(boardSize);
     }
     if (command.mode != Help && (command.x < 0 || command.y < 0)) {
         throwError(InvalidCommand);
-        return getCommand();
+        delete2DArray(commands, 4);
+        return getCommand(boardSize);
     }
+    delete2DArray(commands, 4);
     return command;
 }
 
 GameState
-handleUserCommand(const Command command, vector<vector<char> > &board, const vector<vector<char> > &ValueBord) {
+handleUserCommand(const Command command, char** board, char** const ValueBord, const int boardSize, int * minesCount) {
     switch (command.mode) {
         case Open:
             if (ValueBord[command.x][command.y] == Mine) {
                 return Loss;
             }
-            openCell(command.x, command.y, board, ValueBord);
+            openCell(command.x, command.y, board, ValueBord, boardSize);
             break;
         case Question:
         case Mark:
         case Unmark:
-            setCell(board[command.x][command.y], command.mode);
+            setCell(board[command.x][command.y], command.mode, minesCount);
             break;
         case Help:
             showHelp();
@@ -465,28 +543,32 @@ handleUserCommand(const Command command, vector<vector<char> > &board, const vec
 }
 
 void initGame() {
-    getGameParams();
-    vector<vector<char> > board(BoardSize, vector<char>(BoardSize, Empty));
-    vector<vector<char> > ValueBoard(BoardSize, vector<char>(BoardSize, '0'));
+    GameParams params = getGameParams();
+    char **board = generate2DArray(params.boardSize, Empty);
+    char **valueBoard = generate2DArray(params.boardSize, '0');
 
-    generateBoard(ValueBoard);
+    generateBoard(valueBoard, params.boardSize, params.minesCount);
     GameState state = InProgress;
 
     while (state == InProgress) {
-        renderBoard(state, MinesCount, board);
-        state = handleUserCommand(getCommand(), board, ValueBoard);
-        if (MinesCount == 0) {
-            state = checkBoardState(board, ValueBoard);
+        renderBoard(InProgress, params.minesCount, board, params.boardSize);
+        Command command = getCommand(params.boardSize);
+        state = handleUserCommand(command, board, valueBoard, params.boardSize, &params.minesCount);
+        if (params.minesCount == 0) {
+            state = checkBoardState(board, valueBoard, params.boardSize);
         }
     }
 
     if (state == Loss) {
-        renderBoard(state, MinesCount, ValueBoard);
+        renderBoard(state, params.minesCount, valueBoard, params.boardSize);
         cout << "Ops you hit a mine. Loser. Try again!" << endl;
     } else if (state == Win) {
-        renderBoard(state, MinesCount, board);
+        renderBoard(state, params.minesCount, board, params.boardSize);
         cout << "You win. Loser. Try again?" << endl;
     }
+
+    delete2DArray(board, params.boardSize);
+    delete2DArray(valueBoard, params.boardSize);
 }
 
 int main() {
@@ -494,6 +576,6 @@ int main() {
         initGame();
     } while (continueGame());
 
-    cout << "Nice knowing you!";
+    cout << endl<< "Nice knowing you!";
     return 0;
 }
